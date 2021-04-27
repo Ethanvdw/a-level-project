@@ -1,27 +1,42 @@
 ﻿using UnityEngine;
 
-[RequireComponent(
-    typeof(Controller2D))] // Makes Controller2D a required component. Useful in preventing unintended behaviour and syntax errors.
-public class Player : MonoBehaviour {
-    private readonly float gravity = -20;
-    private readonly float moveSpeed = 6; // Set movement speed for the player.
-    private Controller2D controller; // Import the Controller2D class.
-    private Vector3 velocity; // Store the player velocity as a vector.
+[RequireComponent(typeof(Controller2D))]
+public class Player : MonoBehaviour
+{
+    public float jumpHeight = 4;
+    public float timeToJumpApex = .4f;
 
-    private void Start() {
-        // Code to be run the scene starts.
-        controller = GetComponent<Controller2D>(); // Instantiate a Controller2D as "controller".
+    private Controller2D _controller;
+
+    private float _gravity;
+    private float _jumpVelocity;
+    private Vector3 _velocity;
+    private float _velocityXSmoothing;
+    private readonly float accelerationTimeAirborne = .2f;
+    private readonly float accelerationTimeGrounded = .1f;
+    private readonly float moveSpeed = 6;
+
+    private void Start()
+    {
+        _controller = GetComponent<Controller2D>();
+
+        _gravity = -(2 * jumpHeight) / Mathf.Pow(timeToJumpApex, 2);
+        _jumpVelocity = Mathf.Abs(_gravity) * timeToJumpApex;
+        print("Gravity: " + _gravity + "  Jump Velocity: " + _jumpVelocity);
     }
 
-    private void Update() {
-        // On every frame.
+    private void Update()
+    {
+        if (_controller.Collisions.Above || _controller.Collisions.Below) _velocity.y = 0;
 
-        var input = new Vector2(Input.GetAxisRaw("Horizontal"),
-            Input.GetAxisRaw("Vertical")); // Store player input as a vector.
+        var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
 
-        velocity.x = input.x * moveSpeed; // Add player horizontal movement to their velocity.
-        //Time.deltaTime is the time since the previous frame. Multiplying by this value allows physics not to be dependant on frame rate.
-        velocity.y += gravity * Time.deltaTime; // Drag player downwards by gravity.
-        controller.Move(velocity * Time.deltaTime); // Move the player according to their velocity.
+        if (Input.GetKeyDown(KeyCode.Space) && _controller.Collisions.Below) _velocity.y = _jumpVelocity;
+
+        var targetVelocityX = input.x * moveSpeed;
+        _velocity.x = Mathf.SmoothDamp(_velocity.x, targetVelocityX, ref _velocityXSmoothing,
+            _controller.Collisions.Below ? accelerationTimeGrounded : accelerationTimeAirborne);
+        _velocity.y += _gravity * Time.deltaTime;
+        _controller.Move(_velocity * Time.deltaTime);
     }
 }
